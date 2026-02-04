@@ -1,9 +1,10 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const better_sqlite3_1 = __importDefault(require("better-sqlite3"));
-const db = new better_sqlite3_1.default("database.sqlite");
-db.pragma("journal_mode = WAL");
-exports.default = db;
+exports.pool = void 0;
+const pg_1 = require("pg");
+exports.pool = new pg_1.Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === "production"
+        ? { rejectUnauthorized: false }
+        : false,
+});

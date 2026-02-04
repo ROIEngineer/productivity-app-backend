@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { pool } from "../db";
-import { Note, Database } from "../types";
+import { Note } from "../types";
 
 export async function getNotes(req: Request, res: Response) {
   try {

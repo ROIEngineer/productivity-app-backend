@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { pool } from "../db";
-import { Todo, Database } from "../types";
+import { Todo } from "../types";
 
 export async function getTodos(req: Request, res: Response) {
   try {
