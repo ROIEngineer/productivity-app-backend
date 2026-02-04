@@ -1,7 +1,8 @@
-import Database from "better-sqlite3";
+import { Pool } from "pg";
 
-const db = new Database("database.sqlite");
-
-db.pragma("journal_mode = WAL");
-
-export default db;
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production"
+    ? { rejectUnauthorized: false }
+    : false,
+});

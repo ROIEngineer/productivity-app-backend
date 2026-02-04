@@ -1,19 +1,16 @@
 import { Router } from "express";
-import { Database } from "better-sqlite3";
 import {
   getTodos,
   createTodo,
   updateTodo,
-  deleteTodo
+  deleteTodo,
 } from "../controllers/todosController";
 
-export default function createTodosRouter(db: Database) {
-  const router = Router();
+const router = Router();
 
-  router.get("/", getTodos(db));
-  router.post("/", createTodo(db));
-  router.put("/:id", updateTodo(db));
-  router.delete("/:id", deleteTodo(db));
+router.get("/", getTodos);
+router.post("/", createTodo);
+router.put("/:id", updateTodo);
+router.delete("/:id", deleteTodo);
 
-  return router;
-}
+export default router;

@@ -1,19 +1,16 @@
 import { Router } from "express";
-import { Database } from "better-sqlite3";
 import {
   getNotes,
   createNote,
   updateNote,
-  deleteNote
+  deleteNote,
 } from "../controllers/notesController";
 
-export default function createNotesRouter(db: Database) {
-  const router = Router();
+const router = Router();
 
-  router.get("/", getNotes(db));
-  router.post("/", createNote(db));
-  router.put("/:id", updateNote(db));
-  router.delete("/:id", deleteNote(db));
+router.get("/", getNotes);
+router.post("/", createNote);
+router.put("/:id", updateNote);
+router.delete("/:id", deleteNote);
 
-  return router;
-}
+export default router;

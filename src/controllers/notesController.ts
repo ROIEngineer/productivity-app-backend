@@ -1,100 +1,85 @@
 import { Request, Response } from "express";
-import { Database, Note } from "../types";
+import { pool } from "../db";
+import { Note, Database } from "../types";
 
-/**
- * Factory: receives DB once, returns handlers
- */
-export function getNotes(db: Database) {
-  return (req: Request, res: Response) => {
-    try {
-      const notes: Note[] = db
-        .prepare("SELECT * FROM notes ORDER BY updated_at DESC")
-        .all();
-
-      res.json(notes);
-    } catch {
-      res.status(500).json({ error: "Failed to fetch notes" });
-    }
-  };
+export async function getNotes(req: Request, res: Response) {
+  try {
+    const { rows } = await pool.query<Note>(
+      "SELECT * FROM notes ORDER BY updated_at DESC"
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch notes" });
+  }
 }
 
-export function createNote(db: Database) {
-  return (req: Request, res: Response) => {
-    const { content } = req.body;
+export async function createNote(req: Request, res: Response) {
+  const { content } = req.body;
 
-    if (!content) {
-      return res.status(400).json({ error: "Content is required" });
-    }
+  if (!content) {
+    return res.status(400).json({ error: "Content is required" });
+  }
 
-    const timestamp = new Date().toISOString();
+  try {
+    const { rows } = await pool.query<Note>(
+      `
+      INSERT INTO notes (content)
+      VALUES ($1)
+      RETURNING *
+      `,
+      [content]
+    );
 
-    try {
-      const result = db
-        .prepare(
-          "INSERT INTO notes (content, updated_at) VALUES (?, ?)"
-        )
-        .run(content, timestamp);
-
-      res.status(201).json({
-        id: Number(result.lastInsertRowid),
-        content,
-        updated_at: timestamp,
-      });
-    } catch {
-      res.status(500).json({ error: "Failed to create note" });
-    }
-  };
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to create note" });
+  }
 }
 
-export function updateNote(db: Database) {
-  return (req: Request, res: Response) => {
-    const { id } = req.params;
-    const { content } = req.body;
+export async function updateNote(req: Request, res: Response) {
+  const { id } = req.params;
+  const { content } = req.body;
 
-    if (!content) {
-      return res.status(400).json({ error: "Content is required" });
+  if (!content) {
+    return res.status(400).json({ error: "Content is required" });
+  }
+
+  try {
+    const { rows } = await pool.query<Note>(
+      `
+      UPDATE notes
+      SET content = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING *
+      `,
+      [content, id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Note not found" });
     }
 
-    const timestamp = new Date().toISOString();
-
-    try {
-      const result = db
-        .prepare(
-          "UPDATE notes SET content = ?, updated_at = ? WHERE id = ?"
-        )
-        .run(content, timestamp, id);
-
-      if (result.changes === 0) {
-        return res.status(404).json({ error: "Note not found" });
-      }
-
-      res.json({
-        id: Number(id),
-        content,
-        updated_at: timestamp,
-      });
-    } catch {
-      res.status(500).json({ error: "Failed to update note" });
-    }
-  };
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update note" });
+  }
 }
 
-export function deleteNote(db: Database) {
-  return (req: Request, res: Response) => {
-    const { id } = req.params;
+export async function deleteNote(req: Request, res: Response) {
+  const { id } = req.params;
 
-    try {
-      const result = db
-        .prepare("DELETE FROM notes WHERE id = ?")
-        .run(id);
+  try {
+    const { rowCount } = await pool.query(
+      "DELETE FROM notes WHERE id = $1",
+      [id]
+    );
 
-      if (result.changes === 0) {
-        return res.status(404).json({ error: "Note not found" });
-      }
-
-      res.status(204).end();
-    } catch {
-      res.status(500).json({ error: "Failed to delete note" });
+    if (rowCount === 0) {
+      return res.status(404).json({ error: "Note not found" });
     }
-  };
+
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete note" });
+  }
 }

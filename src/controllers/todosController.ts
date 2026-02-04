@@ -1,96 +1,83 @@
 import { Request, Response } from "express";
-import { Database, Todo } from "../types";
+import { pool } from "../db";
+import { Todo, Database } from "../types";
 
-export function getTodos(db: Database) {
-  return (req: Request, res: Response) => {
-    try {
-      const todos: Todo[] = db
-        .prepare("SELECT * FROM todos")
-        .all();
-
-      res.json(todos);
-    } catch {
-      res.status(500).json({ error: "Failed to fetch todos" });
-    }
-  };
+export async function getTodos(req: Request, res: Response) {
+  try {
+    const { rows } = await pool.query<Todo>(
+      "SELECT * FROM todos ORDER BY id ASC"
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch todos" });
+  }
 }
 
-export function createTodo(db: Database) {
-  return (req: Request, res: Response) => {
-    const { title } = req.body;
+export async function createTodo(req: Request, res: Response) {
+  const { title } = req.body;
 
-    if (!title) {
-      return res.status(400).json({ error: "Title is required" });
-    }
+  if (!title) {
+    return res.status(400).json({ error: "Title is required" });
+  }
 
-    try {
-      const result = db
-        .prepare(
-          "INSERT INTO todos (title, completed) VALUES (?, ?)"
-        )
-        .run(title, 0);
+  try {
+    const { rows } = await pool.query<Todo>(
+      `
+      INSERT INTO todos (title)
+      VALUES ($1)
+      RETURNING *
+      `,
+      [title]
+    );
 
-      const newTodo: Todo = {
-        id: Number(result.lastInsertRowid),
-        title,
-        completed: 0,
-      };
-
-      res.status(201).json(newTodo);
-    } catch {
-      res.status(500).json({ error: "Failed to create todo" });
-    }
-  };
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to create todo" });
+  }
 }
 
-export function updateTodo(db: Database) {
-  return (req: Request, res: Response) => {
-    const { id } = req.params;
-    const { title, completed } = req.body;
+export async function updateTodo(req: Request, res: Response) {
+  const { id } = req.params;
+  const { title, completed } = req.body;
 
-    try {
-      const existing = db
-        .prepare("SELECT * FROM todos WHERE id = ?")
-        .get(id) as Todo | undefined;
+  try {
+    const { rows } = await pool.query<Todo>(
+      `
+      UPDATE todos
+      SET
+        title = COALESCE($1, title),
+        completed = COALESCE($2, completed)
+      WHERE id = $3
+      RETURNING *
+      `,
+      [title, completed, id]
+    );
 
-      if (!existing) {
-        return res.status(404).json({ error: "Todo not found" });
-      }
-
-      const updatedTitle = title ?? existing.title;
-      const updatedCompleted = completed ?? existing.completed;
-
-      db.prepare(
-        "UPDATE todos SET title = ?, completed = ? WHERE id = ?"
-      ).run(updatedTitle, updatedCompleted, id);
-
-      res.json({
-        id: Number(id),
-        title: updatedTitle,
-        completed: updatedCompleted,
-      });
-    } catch {
-      res.status(500).json({ error: "Failed to update todo" });
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Todo not found" });
     }
-  };
+
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update todo" });
+  }
 }
 
-export function deleteTodo(db: Database) {
-  return (req: Request, res: Response) => {
-    const { id } = req.params;
+export async function deleteTodo(req: Request, res: Response) {
+  const { id } = req.params;
 
-    try {
-      const result = db
-        .prepare("DELETE FROM todos WHERE id = ?")
-        .run(id);
+  try {
+    const { rowCount } = await pool.query(
+      "DELETE FROM todos WHERE id = $1",
+      [id]
+    );
 
-      if (result.changes === 0) {
-        return res.status(404).json({ error: "Todo not found" });
-      }
-
-      res.status(204).end();
-    } catch {
-      res.status(500).json({ error: "Failed to delete todo" });
+    if (rowCount === 0) {
+      return res.status(404).json({ error: "Todo not found" });
     }
-  };
+
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete todo" });
+  }
 }
