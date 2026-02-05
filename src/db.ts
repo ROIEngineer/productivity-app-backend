@@ -6,3 +6,4 @@ export const pool = new Pool({
     ? { rejectUnauthorized: false }
     : false,
 });
+
