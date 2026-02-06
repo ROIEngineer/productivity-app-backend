@@ -1,8 +1,8 @@
 export interface Database {
   prepare(sql: string): {
-    all(...params: any[]): any[];  // <-- Add ...params: any[]
+    all(...params: any[]): any[]; 
     run(...params: any[]): { lastInsertRowid: bigint | number; changes: number };
-    get(...params: any[]): any | undefined;  // <-- Add ...params: any[] here too
+    get(...params: any[]): any | undefined; 
   };
 }
 
