@@ -9,7 +9,7 @@ export interface Database {
 export interface Todo {
   id: number;
   title: string;
-  completed: number;
+  completed: boolean;
 }
 
 export interface Note {
